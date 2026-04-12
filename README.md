@@ -1,4 +1,4 @@
-# ShadowByte 💀
+# ShadowByte
 
 > **Fast, invisible, low-level binary steganography engine written in pure Rust.**
 
@@ -6,7 +6,7 @@ ShadowByte is a high-performance tool designed for the silent injection and extr
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### 1. Installation
 Ensure you have the [Rust toolchain](https://rustup.rs/) installed.
@@ -34,7 +34,7 @@ cargo run -- reveal --img secret.png
 
 ---
 
-## 🛠️ Commands & Flags
+## Commands and Flags
 
 | Command | Flag | Description |
 | :--- | :--- | :--- |
@@ -45,7 +45,7 @@ cargo run -- reveal --img secret.png
 
 ---
 
-## 🛡️ Architecture & Stealth
+## Architecture and Stealth
 ShadowByte operates at the hardware-logic level:
 - **Lossless Buffer**: Uses raw `RGBA8` memory buffers to prevent data corruption.
 - **LSB Manipulation**: Only modifies the 1st bit of each pixel color channel.
@@ -53,7 +53,7 @@ ShadowByte operates at the hardware-logic level:
 
 ---
 
-## 🗺️ Roadmap (V2 "The Perfection" Update)
+## Roadmap (V2 Perfection Update)
 We are currently working on the **Military-Grade upgrade**, which will include:
 - [ ] **AES-256-GCM Encryption**: Secure your data with a mandatory password.
 - [ ] **Chaotic Scattering**: Randomize pixel injection points via ChaCha20 PRNG.
@@ -63,5 +63,5 @@ We are currently working on the **Military-Grade upgrade**, which will include:
 
 ---
 
-## 🤝 Contributing
+## Contributing
 ShadowByte is an open-source project. Feel free to fork, open issues, or submit PRs to help make steganography more accessible and secure.
