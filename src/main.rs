@@ -1,5 +1,6 @@
 pub mod cli;
 pub mod stega;
+pub mod image_buffer;
 
 use clap::Parser;
 use cli::{Cli, Commands};
