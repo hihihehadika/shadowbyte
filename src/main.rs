@@ -1,4 +1,5 @@
-mod cli;
+pub mod cli;
+pub mod stega;
 
 use clap::Parser;
 use cli::{Cli, Commands};
