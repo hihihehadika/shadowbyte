@@ -1,35 +1,67 @@
-# ShadowByte
+# ShadowByte 💀
 
-> Fast, invisible, low-level binary steganography engine written in pure Rust.
+> **Fast, invisible, low-level binary steganography engine written in pure Rust.**
 
-ShadowByte allows you to cryptographically inject and extract secret textual payloads deep into the Least Significant Bits (LSB) of RGB image pixels without altering their visual integrity.
+ShadowByte is a high-performance tool designed for the silent injection and extraction of secret payloads within image media. By manipulating the **Least Significant Bit (LSB)** of RGB pixels, it hides data in plain sight with zero visual degradation.
 
-## Features
-- **100% Lossless Steganography**: Directly mutates binary memory buffers natively via Rust.
-- **Microsecond Extraction**: Bypasses heavy headers to directly stream bits out of 1D vector arrays.
-- **Stealth Architecture**: Visual degradation of carrier media is mathematically indistinguishable to the naked eye.
+---
 
-## Installation
-Ensure you have the latest stable [Rust and Cargo](https://rustup.rs/) installed.
+## 🚀 Quick Start
+
+### 1. Installation
+Ensure you have the [Rust toolchain](https://rustup.rs/) installed.
 ```bash
 git clone https://github.com/hihihehadika/shadowbyte.git
 cd shadowbyte
 cargo build --release
 ```
 
-## Usage
-
-**Hide a Message:**
-Takes a carrier media, forcibly modifies its bits, and generates an encrypted output media containing your deep-layer text.
+### 2. Hide a Secret Message
+To hide a message, you need a carrier image (PNG). The engine will fuse your text into the pixels and produce a new file.
 ```bash
-cargo run -- hide --img carrier.png --msg "Your secret payload block" --out secret.png
+# Syntax:
+cargo run -- hide --img <INPUT_PNG> --msg "<YOUR_SECRET>" --out <OUTPUT_PNG>
+
+# Example:
+cargo run -- hide --img base.png --msg "Hello from the shadows" --out secret.png
 ```
 
-**Reveal a Message:**
-Extracts a continuous sub-surface LSB sequence from an encrypted media file until the injected null-terminator halts the process.
+### 3. Reveal the Secret
+To extract the message back, simply point the engine to the modified image.
 ```bash
 cargo run -- reveal --img secret.png
 ```
 
-## Architecture Map
-Built around an atomic CLI command core utilizing `clap` and raw 8-bit `RGBA` flattened manipulations dynamically allocated by `image`. The payload strictly isolates bits from left to right (`MSB to LSB`) and securely breaks loops via an aggressive mathematical null-terminator injection (`\0`).
+---
+
+## 🛠️ Commands & Flags
+
+| Command | Flag | Description |
+| :--- | :--- | :--- |
+| `hide` | `--img`, `-i` | The source carrier image (Must be PNG). |
+| | `--msg`, `-m` | The text payload you want to hide. |
+| | `--out`, `-o` | The filename for the generated steganographic image. |
+| `reveal`| `--img`, `-i` | The image containing the hidden payload. |
+
+---
+
+## 🛡️ Architecture & Stealth
+ShadowByte operates at the hardware-logic level:
+- **Lossless Buffer**: Uses raw `RGBA8` memory buffers to prevent data corruption.
+- **LSB Manipulation**: Only modifies the 1st bit of each pixel color channel.
+- **Null-Terminator**: Injects a specific 8-bit zero sequence to mark the end of data.
+
+---
+
+## 🗺️ Roadmap (V2 "The Perfection" Update)
+We are currently working on the **Military-Grade upgrade**, which will include:
+- [ ] **AES-256-GCM Encryption**: Secure your data with a mandatory password.
+- [ ] **Chaotic Scattering**: Randomize pixel injection points via ChaCha20 PRNG.
+- [ ] **Universal Binary**: Support for hiding any file type (.zip, .pdf, .exe).
+- [ ] **Plausible Deniability**: Dual-volume password support.
+- [ ] **WebAssembly (WASM)**: Running ShadowByte directly in your browser.
+
+---
+
+## 🤝 Contributing
+ShadowByte is an open-source project. Feel free to fork, open issues, or submit PRs to help make steganography more accessible and secure.
