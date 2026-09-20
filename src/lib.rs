@@ -1,4 +1,4 @@
-/// ShadowByte V2 — Library Interface
+/// ShadowByte Library Interface
 ///
 /// This file exposes the core steganography engine as a reusable library.
 /// Both native CLI (via main.rs) and WASM (via wasm-bindgen) can link against this.

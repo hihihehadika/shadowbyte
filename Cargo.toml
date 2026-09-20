@@ -2,7 +2,7 @@
 name = "shadowbyte"
 version = "2.0.0"
 edition = "2024"
-description = "Ghost-Class military-grade binary steganography engine in pure Rust."
+description = "A binary steganography engine in pure Rust."
 authors = ["hihihehadika"]
 
 [dependencies]

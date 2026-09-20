@@ -4,7 +4,7 @@ use clap::{Parser, Subcommand};
 #[command(
     author,
     version,
-    about = "ShadowByte V2 — Ghost-Class binary steganography engine",
+    about = "A binary steganography engine",
     long_about = None
 )]
 #[command(propagate_version = true)]
