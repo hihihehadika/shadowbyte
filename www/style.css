@@ -445,18 +445,27 @@ textarea::placeholder {
 /* ── Footer ───────────────────────────────────────────────── */
 .footer {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   align-items: center;
   gap: 8px;
   font-size: 0.8125rem;
   color: var(--text-3);
+  text-align: center;
+}
+
+.footer-github {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .footer a {
-  color: var(--text-3);
+  color: var(--text-2);
   text-decoration: none;
   transition: color 0.15s;
 }
-.footer a:hover { color: var(--text-2); }
+.footer a:hover { color: var(--text-1); }
 
 /* ── Utility ──────────────────────────────────────────────── */
 .hidden { display: none !important; }

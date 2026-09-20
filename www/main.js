@@ -1,67 +1,99 @@
+// ─── Top-level Module Imports ──────────────────────────────────
+import init, { hide_text, reveal_text, hide_file, reveal_file } from './pkg/shadowbyte_core.js';
+
 // ─── Constants ────────────────────────────────────────────────
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024;  // 10MB carrier image limit
-const MAX_PAYLOAD_SIZE = 2 * 1024 * 1024; // 2MB hidden file limit
+const MAX_PAYLOAD_SIZE = 2 * 1024 * 1024; // 2MB hidden payload file limit
 
 // ─── Toast System ─────────────────────────────────────────────
 function showToast(message, type = 'error') {
   const container = document.getElementById('toast-container');
+  if (!container) return;
+
   const toast = document.createElement('div');
   toast.className = `toast toast-${type}`;
   toast.textContent = message;
   container.appendChild(toast);
 
-  // Trigger animation
+  // Trigger smooth enter animation
   requestAnimationFrame(() => toast.classList.add('visible'));
 
-  // Auto-remove after 4s
+  // Auto-remove after 4 seconds
   setTimeout(() => {
     toast.classList.remove('visible');
     toast.addEventListener('transitionend', () => toast.remove(), { once: true });
   }, 4000);
 }
 
-// ─── Tab Switching (registered immediately, before WASM loads) ─
+// ─── Tab Switching ────────────────────────────────────────────
+// Registered immediately so UI is 100% responsive right away
 document.querySelectorAll('.tab').forEach(tab => {
   tab.addEventListener('click', () => {
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab').forEach(t => {
+      t.classList.remove('active');
+      t.setAttribute('aria-selected', 'false');
+    });
     document.querySelectorAll('.panel').forEach(p => {
       p.classList.remove('active');
       p.classList.add('hidden');
     });
+
     tab.classList.add('active');
-    const target = document.getElementById(tab.dataset.target);
-    target.classList.remove('hidden');
-    target.classList.add('active');
+    tab.setAttribute('aria-selected', 'true');
+
+    const targetId = tab.dataset.target;
+    const targetPanel = document.getElementById(targetId);
+    if (targetPanel) {
+      targetPanel.classList.remove('hidden');
+      targetPanel.classList.add('active');
+    }
   });
 });
 
-// ─── Global drag-drop guard (prevents browser opening files) ──
-window.addEventListener('dragover', e => e.preventDefault());
-window.addEventListener('drop', e => e.preventDefault());
+// ─── Global Drag & Drop Prevention ────────────────────────────
+// Prevents the browser from navigating away or opening the dropped image
+['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+  window.addEventListener(eventName, e => {
+    e.preventDefault();
+  }, false);
+});
 
-// ─── Drag overlay ─────────────────────────────────────────────
+// ─── Global Drag Overlay ──────────────────────────────────────
 let dragCounter = 0;
 const dragOverlay = document.getElementById('drag-overlay');
 
-window.addEventListener('dragenter', () => {
-  dragCounter++;
-  dragOverlay.classList.remove('hidden');
+window.addEventListener('dragenter', e => {
+  if (e.dataTransfer && e.dataTransfer.types && e.dataTransfer.types.includes('Files')) {
+    dragCounter++;
+    if (dragOverlay) dragOverlay.classList.remove('hidden');
+  }
 });
+
 window.addEventListener('dragleave', () => {
   dragCounter--;
   if (dragCounter <= 0) {
     dragCounter = 0;
-    dragOverlay.classList.add('hidden');
+    if (dragOverlay) dragOverlay.classList.add('hidden');
   }
 });
+
 window.addEventListener('drop', () => {
   dragCounter = 0;
-  dragOverlay.classList.add('hidden');
+  if (dragOverlay) dragOverlay.classList.add('hidden');
 });
 
-// ─── Dropzone helper ──────────────────────────────────────────
-// Fix: JS handles clicks exclusively — no <label for=""> to avoid double-trigger
-function setupDropzone({ dropzoneId, inputId, previewId, previewContainerId, previewNameId, removeId, maxSize, onFile }) {
+// ─── Dropzone Setup Helper ────────────────────────────────────
+function setupDropzone({
+  dropzoneId,
+  inputId,
+  previewId,
+  previewContainerId,
+  previewNameId,
+  removeId,
+  maxSize,
+  requirePng = true,
+  onFile
+}) {
   const dropzone         = document.getElementById(dropzoneId);
   const input            = document.getElementById(inputId);
   const preview          = document.getElementById(previewId);
@@ -69,49 +101,110 @@ function setupDropzone({ dropzoneId, inputId, previewId, previewContainerId, pre
   const previewName      = document.getElementById(previewNameId);
   const removeBtn        = document.getElementById(removeId);
 
+  if (!dropzone || !input) return;
+
   function validateAndShowFile(file) {
     if (!file) return;
 
+    // 1. Format validation (PNG check)
+    if (requirePng) {
+      const isPng = file.type === 'image/png' || file.name.toLowerCase().endsWith('.png');
+      if (!isPng) {
+        showToast('Invalid format! Only PNG files are supported to prevent compression data loss.', 'error');
+        input.value = '';
+        return;
+      }
+    }
+
+    // 2. File size validation
     if (maxSize && file.size > maxSize) {
-      showToast(`File too large: ${(file.size / 1024 / 1024).toFixed(1)}MB. Maximum is ${(maxSize / 1024 / 1024).toFixed(0)}MB.`, 'error');
+      const sizeMb = (file.size / (1024 * 1024)).toFixed(1);
+      const maxMb = (maxSize / (1024 * 1024)).toFixed(0);
+      showToast(`File too large: ${sizeMb}MB. Maximum allowed is ${maxMb}MB.`, 'error');
       input.value = '';
       return;
     }
 
+    // Show preview
     const url = URL.createObjectURL(file);
     preview.src = url;
     preview.onload = () => URL.revokeObjectURL(url);
-    previewName.textContent = file.name;
+    if (previewName) previewName.textContent = file.name;
+
     dropzone.classList.add('hidden');
-    previewContainer.classList.remove('hidden');
+    if (previewContainer) previewContainer.classList.remove('hidden');
+
     onFile(file);
   }
 
   function clearFile() {
     preview.src = '';
-    previewName.textContent = '';
-    previewContainer.classList.add('hidden');
+    if (previewName) previewName.textContent = '';
+    if (previewContainer) previewContainer.classList.add('hidden');
     dropzone.classList.remove('hidden');
     input.value = '';
     onFile(null);
   }
 
-  // Fix: single click handler on dropzone div, not the <label>
-  dropzone.addEventListener('click', () => input.click());
-  input.addEventListener('change', () => validateAndShowFile(input.files[0]));
-  removeBtn.addEventListener('click', e => { e.stopPropagation(); clearFile(); });
+  // Click triggers file dialog without double-firing
+  dropzone.addEventListener('click', e => {
+    if (e.target === input) return;
+    input.click();
+  });
 
-  dropzone.addEventListener('dragover', e => { e.preventDefault(); e.stopPropagation(); dropzone.classList.add('drag-over'); });
-  dropzone.addEventListener('dragleave', e => { e.stopPropagation(); dropzone.classList.remove('drag-over'); });
+  // Stop input clicks from bubbling to dropzone
+  input.addEventListener('click', e => {
+    e.stopPropagation();
+  });
+
+  // Keyboard accessibility
+  dropzone.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      input.click();
+    }
+  });
+
+  input.addEventListener('change', () => {
+    if (input.files && input.files.length > 0) {
+      validateAndShowFile(input.files[0]);
+    }
+  });
+
+  if (removeBtn) {
+    removeBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      clearFile();
+    });
+  }
+
+  // Dropzone drag events
+  dropzone.addEventListener('dragover', e => {
+    e.preventDefault();
+    e.stopPropagation();
+    dropzone.classList.add('drag-over');
+  });
+
+  dropzone.addEventListener('dragleave', e => {
+    e.preventDefault();
+    e.stopPropagation();
+    dropzone.classList.remove('drag-over');
+  });
+
   dropzone.addEventListener('drop', e => {
     e.preventDefault();
     e.stopPropagation();
     dropzone.classList.remove('drag-over');
-    validateAndShowFile(e.dataTransfer.files[0]);
+    if (dragOverlay) dragOverlay.classList.add('hidden');
+    dragCounter = 0;
+
+    if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      validateAndShowFile(e.dataTransfer.files[0]);
+    }
   });
 }
 
-// ─── Helper: image file → raw RGBA ────────────────────────────
+// ─── Image Processing Helpers ─────────────────────────────────
 function imageFileToRgba(file) {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -124,29 +217,38 @@ function imageFileToRgba(file) {
       ctx.drawImage(img, 0, 0);
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       URL.revokeObjectURL(url);
-      // Fix: use Uint8Array(buffer) not Array.from() — avoids memory freeze
-      resolve({ rgba: new Uint8Array(imageData.data.buffer), width: canvas.width, height: canvas.height });
+      // Fast typed-array copy (avoids Array.from() browser freezes)
+      resolve({
+        rgba: new Uint8Array(imageData.data),
+        width: canvas.width,
+        height: canvas.height
+      });
     };
-    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Failed to load image.')); };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('Failed to read image file.'));
+    };
     img.src = url;
   });
 }
 
-// ─── Helper: raw RGBA → PNG Blob ──────────────────────────────
 function rgbaToBlob(rgba, width, height) {
-  return new Promise(resolve => {
+  return new Promise((resolve, reject) => {
     const canvas = document.getElementById('scratch-canvas');
     canvas.width = width;
     canvas.height = height;
     const ctx = canvas.getContext('2d');
-    const imageData = new ImageData(new Uint8ClampedArray(rgba.buffer || rgba), width, height);
+    const clamped = new Uint8ClampedArray(rgba);
+    const imageData = new ImageData(clamped, width, height);
     ctx.putImageData(imageData, 0, 0);
-    canvas.toBlob(resolve, 'image/png');
+    canvas.toBlob(blob => {
+      if (blob) resolve(blob);
+      else reject(new Error('Failed to generate output image blob.'));
+    }, 'image/png');
   });
 }
 
-// ─── Helper: trigger download ─────────────────────────────────
-function download(blob, filename) {
+function downloadBlob(blob, filename) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -157,17 +259,17 @@ function download(blob, filename) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-// ─── Helper: loading state ────────────────────────────────────
 function setLoading(btnId, loading) {
   const btn = document.getElementById(btnId);
+  if (!btn) return;
   const text = btn.querySelector('.btn-text');
   const loader = btn.querySelector('.loader');
   btn.disabled = loading;
-  text.classList.toggle('hidden', loading);
-  loader.classList.toggle('hidden', !loading);
+  if (text) text.classList.toggle('hidden', loading);
+  if (loader) loader.classList.toggle('hidden', !loading);
 }
 
-// ─── HIDE panel setup ─────────────────────────────────────────
+// ─── Hide Panel Logic ─────────────────────────────────────────
 let hideImageFile = null;
 let hidePayloadFile = null;
 
@@ -179,10 +281,14 @@ setupDropzone({
   previewNameId: 'hide-preview-name',
   removeId: 'hide-remove',
   maxSize: MAX_IMAGE_SIZE,
-  onFile: f => { hideImageFile = f; updateHideBtn(); }
+  requirePng: true,
+  onFile: file => {
+    hideImageFile = file;
+    updateHideBtn();
+  }
 });
 
-// Payload type toggle
+// Mode toggle (Text vs File)
 document.querySelectorAll('input[name="hide-mode"]').forEach(radio => {
   radio.addEventListener('change', () => {
     const isFile = radio.value === 'file';
@@ -192,42 +298,83 @@ document.querySelectorAll('input[name="hide-mode"]').forEach(radio => {
   });
 });
 
-// Payload file dropzone (small)
+// Binary file payload dropzone
 const hideFileDropzone = document.getElementById('hide-file-dropzone');
 const hideFileInput    = document.getElementById('hide-file-input');
 const hideFileLabel    = document.getElementById('hide-file-label');
 
 function setPayloadFile(file) {
-  if (!file) { hidePayloadFile = null; hideFileLabel.textContent = 'Select a file to hide'; updateHideBtn(); return; }
+  if (!file) {
+    hidePayloadFile = null;
+    hideFileLabel.textContent = 'Select a file to hide';
+    updateHideBtn();
+    return;
+  }
+
   if (file.size > MAX_PAYLOAD_SIZE) {
-    showToast(`File too large: ${(file.size / 1024 / 1024).toFixed(1)}MB. Maximum payload is 2MB.`, 'error');
+    const sizeMb = (file.size / (1024 * 1024)).toFixed(1);
+    showToast(`File too large: ${sizeMb}MB. Maximum payload is 2MB.`, 'error');
     hideFileInput.value = '';
     return;
   }
+
   hidePayloadFile = file;
-  hideFileLabel.textContent = `${file.name} (${(file.size / 1024).toFixed(0)} KB)`;
+  const sizeKb = (file.size / 1024).toFixed(0);
+  hideFileLabel.textContent = `${file.name} (${sizeKb} KB)`;
   updateHideBtn();
 }
 
-hideFileDropzone.addEventListener('click', () => hideFileInput.click());
-hideFileInput.addEventListener('change', () => setPayloadFile(hideFileInput.files[0]));
-hideFileDropzone.addEventListener('dragover', e => { e.preventDefault(); e.stopPropagation(); hideFileDropzone.classList.add('drag-over'); });
-hideFileDropzone.addEventListener('dragleave', e => { e.stopPropagation(); hideFileDropzone.classList.remove('drag-over'); });
-hideFileDropzone.addEventListener('drop', e => { e.preventDefault(); e.stopPropagation(); hideFileDropzone.classList.remove('drag-over'); setPayloadFile(e.dataTransfer.files[0]); });
+if (hideFileDropzone && hideFileInput) {
+  hideFileDropzone.addEventListener('click', e => {
+    if (e.target === hideFileInput) return;
+    hideFileInput.click();
+  });
+
+  hideFileInput.addEventListener('click', e => e.stopPropagation());
+
+  hideFileInput.addEventListener('change', () => {
+    if (hideFileInput.files && hideFileInput.files.length > 0) {
+      setPayloadFile(hideFileInput.files[0]);
+    }
+  });
+
+  hideFileDropzone.addEventListener('dragover', e => {
+    e.preventDefault();
+    e.stopPropagation();
+    hideFileDropzone.classList.add('drag-over');
+  });
+
+  hideFileDropzone.addEventListener('dragleave', e => {
+    e.preventDefault();
+    e.stopPropagation();
+    hideFileDropzone.classList.remove('drag-over');
+  });
+
+  hideFileDropzone.addEventListener('drop', e => {
+    e.preventDefault();
+    e.stopPropagation();
+    hideFileDropzone.classList.remove('drag-over');
+    if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      setPayloadFile(e.dataTransfer.files[0]);
+    }
+  });
+}
 
 function updateHideBtn() {
   const btn = document.getElementById('hide-run');
-  if (!wasmReady) return; // still loading
+  if (!btn || !wasmReady) return;
+
   const mode = document.querySelector('input[name="hide-mode"]:checked').value;
   const hasPayload = mode === 'text'
     ? document.getElementById('hide-message').value.trim().length > 0
     : hidePayloadFile !== null;
+
   btn.disabled = !hideImageFile || !hasPayload;
 }
 
 document.getElementById('hide-message').addEventListener('input', updateHideBtn);
 
-// ─── REVEAL panel setup ───────────────────────────────────────
+// ─── Reveal Panel Logic ───────────────────────────────────────
 let revealImageFile = null;
 
 setupDropzone({
@@ -238,89 +385,107 @@ setupDropzone({
   previewNameId: 'reveal-preview-name',
   removeId: 'reveal-remove',
   maxSize: MAX_IMAGE_SIZE,
-  onFile: f => { revealImageFile = f; updateRevealBtn(); }
+  requirePng: true,
+  onFile: file => {
+    revealImageFile = file;
+    updateRevealBtn();
+  }
 });
 
 function updateRevealBtn() {
   const btn = document.getElementById('reveal-run');
-  if (!wasmReady) return;
+  if (!btn || !wasmReady) return;
   btn.disabled = !revealImageFile;
 }
 
-// ─── Load WASM (after all listeners are set) ──────────────────
+// ─── Asynchronous WASM Initialization ─────────────────────────
 let wasmReady = false;
-let hide_text_fn, reveal_text_fn, hide_file_fn, reveal_file_fn;
 
-// Set buttons to "loading" state initially
-document.getElementById('hide-run').disabled = true;
-document.getElementById('reveal-run').disabled = true;
-document.getElementById('hide-run').querySelector('.btn-text').textContent = 'Loading Engine...';
-document.getElementById('reveal-run').querySelector('.btn-text').textContent = 'Loading Engine...';
+async function initWasmEngine() {
+  try {
+    await init();
+    wasmReady = true;
 
-import init, { hide_text, reveal_text, hide_file, reveal_file } from './pkg/shadowbyte_core.js';
+    const hideBtn = document.getElementById('hide-run');
+    const revealBtn = document.getElementById('reveal-run');
 
-try {
-  await init();
-  wasmReady = true;
-  hide_text_fn   = hide_text;
-  reveal_text_fn = reveal_text;
-  hide_file_fn   = hide_file;
-  reveal_file_fn = reveal_file;
+    if (hideBtn) hideBtn.querySelector('.btn-text').textContent = 'Inject & Download';
+    if (revealBtn) revealBtn.querySelector('.btn-text').textContent = 'Extract Payload';
 
-  document.getElementById('hide-run').querySelector('.btn-text').textContent = 'Inject & Download';
-  document.getElementById('reveal-run').querySelector('.btn-text').textContent = 'Extract Payload';
-  updateHideBtn();
-  updateRevealBtn();
-} catch (err) {
-  showToast('Failed to load the WASM engine. Please refresh the page.', 'error');
+    updateHideBtn();
+    updateRevealBtn();
+  } catch (err) {
+    console.error('WASM engine load error:', err);
+    showToast('Failed to load WebAssembly engine. Please reload the page.', 'error');
+  }
 }
 
-// ─── HIDE: Run ────────────────────────────────────────────────
-document.getElementById('hide-run').addEventListener('click', async () => {
-  if (!wasmReady) return;
-  const password = document.getElementById('hide-password').value;
-  const mode     = document.querySelector('input[name="hide-mode"]:checked').value;
+// Start loading WASM in background without blocking the UI
+initWasmEngine();
 
-  if (!hideImageFile) return showToast('Please select a carrier image.', 'error');
-  if (!password)      return showToast('Please enter a password.', 'error');
+// ─── Hide Action ──────────────────────────────────────────────
+document.getElementById('hide-run').addEventListener('click', async () => {
+  if (!wasmReady) {
+    showToast('Engine is still loading, please wait a moment...', 'error');
+    return;
+  }
+
+  const password = document.getElementById('hide-password').value;
+  const mode = document.querySelector('input[name="hide-mode"]:checked').value;
+
+  if (!hideImageFile) return showToast('Please select a carrier PNG image.', 'error');
+  if (!password)      return showToast('Please enter an encryption password.', 'error');
 
   setLoading('hide-run', true);
+
   try {
     const { rgba, width, height } = await imageFileToRgba(hideImageFile);
 
     let resultRgba;
     if (mode === 'text') {
       const message = document.getElementById('hide-message').value.trim();
-      if (!message) { showToast('Please enter a message.', 'error'); return; }
-      resultRgba = hide_text_fn(rgba, message, password);
+      if (!message) {
+        showToast('Please enter a secret message.', 'error');
+        setLoading('hide-run', false);
+        return;
+      }
+      resultRgba = hide_text(rgba, message, password);
     } else {
-      if (!hidePayloadFile) { showToast('Please select a file to hide.', 'error'); return; }
+      if (!hidePayloadFile) {
+        showToast('Please select a file to hide.', 'error');
+        setLoading('hide-run', false);
+        return;
+      }
       const fileBytes = new Uint8Array(await hidePayloadFile.arrayBuffer());
-      resultRgba = hide_file_fn(rgba, fileBytes, password);
+      resultRgba = hide_file(rgba, fileBytes, password);
     }
 
     const blob = await rgbaToBlob(resultRgba, width, height);
-    download(blob, 'output.png');
-    showToast('Done! Output image downloaded.', 'success');
+    downloadBlob(blob, 'shadowbyte_stego.png');
+    showToast('Success! Stego image generated and downloaded.', 'success');
   } catch (err) {
+    console.error('Hide error:', err);
     showToast(`Error: ${err}`, 'error');
   } finally {
     setLoading('hide-run', false);
   }
 });
 
-// ─── REVEAL: Run ──────────────────────────────────────────────
+// ─── Reveal Action ────────────────────────────────────────────
 document.getElementById('reveal-run').addEventListener('click', async () => {
-  if (!wasmReady) return;
-  const password = document.getElementById('reveal-password').value;
+  if (!wasmReady) {
+    showToast('Engine is still loading, please wait a moment...', 'error');
+    return;
+  }
 
-  if (!revealImageFile) return showToast('Please select an image.', 'error');
-  if (!password)        return showToast('Please enter a password.', 'error');
+  const password = document.getElementById('reveal-password').value;
+  if (!revealImageFile) return showToast('Please select a stego PNG image.', 'error');
+  if (!password)        return showToast('Please enter the decryption password.', 'error');
 
   const resultContainer = document.getElementById('reveal-result');
-  const textOut   = document.getElementById('reveal-text-output');
-  const fileOut   = document.getElementById('reveal-file-output');
-  const dlBtn     = document.getElementById('reveal-file-download');
+  const textOut         = document.getElementById('reveal-text-output');
+  const fileOut         = document.getElementById('reveal-file-output');
+  const dlBtn           = document.getElementById('reveal-file-download');
 
   resultContainer.classList.add('hidden');
   setLoading('reveal-run', true);
@@ -330,14 +495,21 @@ document.getElementById('reveal-run').addEventListener('click', async () => {
 
     let isText = true;
     let extracted;
+
+    // Try text decode first; if invalid UTF-8, decode as binary file
     try {
-      extracted = reveal_text_fn(rgba, password);
+      extracted = reveal_text(rgba, password);
     } catch {
       isText = false;
-      extracted = reveal_file_fn(rgba, password);
+      try {
+        extracted = reveal_file(rgba, password);
+      } catch (fileErr) {
+        throw new Error('Extraction failed. Incorrect password or invalid stego image.');
+      }
     }
 
     resultContainer.classList.remove('hidden');
+
     if (isText) {
       textOut.textContent = extracted;
       textOut.classList.remove('hidden');
@@ -347,11 +519,13 @@ document.getElementById('reveal-run').addEventListener('click', async () => {
       fileOut.classList.remove('hidden');
       const blob = new Blob([extracted]);
       dlBtn.href = URL.createObjectURL(blob);
-      dlBtn.download = 'extracted_file';
+      dlBtn.download = 'extracted_secret';
     }
+
     showToast('Payload extracted successfully!', 'success');
   } catch (err) {
-    showToast(`Error: ${err}`, 'error');
+    console.error('Reveal error:', err);
+    showToast(`${err.message || err}`, 'error');
     resultContainer.classList.add('hidden');
   } finally {
     setLoading('reveal-run', false);
