@@ -135,7 +135,7 @@ fn build_scatter_table(scatter_seed: &[u8; 32], total_bits: usize) -> Vec<usize>
     let mut rng = ChaCha20Rng::from_seed(*scatter_seed);
     let mut indices: Vec<usize> = (0..total_bits).collect();
     for i in (1..total_bits).rev() {
-        let j = (rng.next_u64() as usize) % (i + 1);
+        let j = (rng.next_u64() % ((i + 1) as u64)) as usize;
         indices.swap(i, j);
     }
     indices
