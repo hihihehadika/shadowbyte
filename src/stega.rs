@@ -226,7 +226,7 @@ fn read_fixed_zone(image_buffer: &[u8]) -> ([u8; SALT_LEN], u32) {
 pub fn encode(image_buffer: &mut Vec<u8>, payload: &[u8], password: &str) -> Result<(), String> {
     // 1. Compress
     let compressed = compress(payload);
-    let original_len = payload.len() as u64;
+    
 
     // 2. Generate random Salt + Nonce
     let mut salt = [0u8; SALT_LEN];
@@ -249,9 +249,10 @@ pub fn encode(image_buffer: &mut Vec<u8>, payload: &[u8], password: &str) -> Res
 
     // 6. Build scattered stream: Nonce(12) + orig_len(8) + FEC data
     //    (fec_len is NOT needed in stream — fec_data carries its own shard_size)
+    let cipher_len = ciphertext.len() as u64;
     let mut scattered_stream: Vec<u8> = Vec::new();
     scattered_stream.extend_from_slice(&nonce_bytes);
-    scattered_stream.extend_from_slice(&original_len.to_le_bytes());
+    scattered_stream.extend_from_slice(&cipher_len.to_le_bytes());
     scattered_stream.extend_from_slice(&fec_data);
 
     let total_scattered_len = scattered_stream.len() as u32;
@@ -307,7 +308,7 @@ pub fn decode(image_buffer: &[u8], password: &str) -> Result<Vec<u8>, String> {
         return Err("Scattered stream too short — corrupted payload.".into());
     }
     let nonce_bytes: [u8; NONCE_LEN] = full_scattered[..NONCE_LEN].try_into().unwrap();
-    let original_len = u64::from_le_bytes(
+    let cipher_len_extracted = u64::from_le_bytes(
         full_scattered[NONCE_LEN..NONCE_LEN + 8].try_into().unwrap()
     ) as usize;
     let fec_data = &full_scattered[NONCE_LEN + 8..];
@@ -316,11 +317,8 @@ pub fn decode(image_buffer: &[u8], password: &str) -> Result<Vec<u8>, String> {
     if fec_data.len() < 4 {
         return Err("FEC data too short — corrupted payload.".into());
     }
-    let shard_size = u32::from_le_bytes(
-        fec_data[..4].try_into().unwrap()
-    ) as usize;
-    let cipher_len = shard_size * RS_DATA_SHARDS;
-    let ciphertext = rs_decode(fec_data, cipher_len).map_err(|e| e.to_string())?;
+
+    let ciphertext = rs_decode(fec_data, cipher_len_extracted).map_err(|e| e.to_string())?;
 
     // Step 6: AES-256-GCM decrypt
     let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(&aes_key));
@@ -330,8 +328,8 @@ pub fn decode(image_buffer: &[u8], password: &str) -> Result<Vec<u8>, String> {
         .map_err(|_| "Decryption failed — wrong password or no hidden payload.")?;
 
     // Step 7: Decompress
-    let mut payload = decompress(&compressed)?;
-    payload.truncate(original_len);
+    let payload = decompress(&compressed)?;
+    
 
     Ok(payload)
 }
