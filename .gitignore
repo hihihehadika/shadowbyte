@@ -2,3 +2,5 @@
 **/*.rs.bk
 *.png
 !README_assets/*.png
+www/pkg/
+node_modules/
