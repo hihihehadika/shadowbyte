@@ -19,6 +19,7 @@ reed-solomon-erasure = "6.0"
 wasm-bindgen = "0.2"
 console_error_panic_hook = "0.1"
 getrandom = { version = "0.2", features = ["js"] }
+instant = { version = "0.1", features = ["wasm-bindgen"] }
 
 [lib]
 name = "shadowbyte_core"

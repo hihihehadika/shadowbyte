@@ -1,0 +1,19 @@
+{
+  "name": "shadowbyte",
+  "type": "module",
+  "collaborators": [
+    "hihihehadika"
+  ],
+  "description": "A binary steganography engine in pure Rust.",
+  "version": "2.0.0",
+  "files": [
+    "shadowbyte_core_bg.wasm",
+    "shadowbyte_core.js",
+    "shadowbyte_core.d.ts"
+  ],
+  "main": "shadowbyte_core.js",
+  "types": "shadowbyte_core.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}
