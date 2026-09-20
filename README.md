@@ -2,6 +2,8 @@
 
 A binary steganography engine written in pure Rust.
 
+**Live Web Demo**: [shadowbyte-rs.vercel.app](https://shadowbyte-rs.vercel.app)
+
 ShadowByte cryptographically injects and extracts secret payloads into the Least Significant Bits (LSB) of image pixels. 
 
 ## Features
