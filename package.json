@@ -3,7 +3,7 @@
   "version": "2.0.0",
   "private": true,
   "scripts": {
-    "build": "curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain stable --profile minimal 2>/dev/null; . \"$HOME/.cargo/env\"; cargo install wasm-pack --locked 2>/dev/null || true; wasm-pack build --target web --out-dir www/pkg",
+    "build": "curl -L https://github.com/rustwasm/wasm-pack/releases/download/v0.13.0/wasm-pack-v0.13.0-x86_64-unknown-linux-musl.tar.gz | tar -xz && ./wasm-pack-v0.13.0-x86_64-unknown-linux-musl/wasm-pack build --target web --out-dir www/pkg",
     "dev": "wasm-pack build --target web --out-dir www/pkg && npx serve www"
   }
 }
